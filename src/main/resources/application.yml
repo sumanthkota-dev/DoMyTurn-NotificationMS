@@ -1,0 +1,73 @@
+server:
+  port: 8086
+spring:
+  application:
+    name: notification-service
+  profiles:
+    active: dev # default profile for local
+  datasource:
+    url: jdbc:postgresql://localhost:5432/notification_db
+    username: postgres
+    password: mypassword
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 10
+      auto-commit: true
+      pool-name: HikariCP
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        enabled: true
+        register: true
+        service-name: notification-service
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "app.domyturn.common.dto"
+  data:
+    redis:
+      host: localhost
+      port: 6379
+kafka:
+  topic: home-activities
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600000}      # default 1hr
+  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:2592000000} # default 30 days
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  health:
+    mail:
+      enabled: false
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+#
+#logging:
+#  level:
+#    '[org.springframework.security]': DEBUG
+firebase:
+  credentials: classpath:domyturn-54b16-firebase-adminsdk-fbsvc-116ef59b02.json
