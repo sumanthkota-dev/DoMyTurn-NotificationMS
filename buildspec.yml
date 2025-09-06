@@ -1,0 +1,33 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: ap-south-1       # Change to your region
+    ECR_REPO: <your-ecr-repo-name>       # Example: my-microservices
+  secrets-manager:
+    DOCKERHUB_USERNAME: dockerhub/username
+    DOCKERHUB_PASSWORD: dockerhub/password
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws --version
+      - $(aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin <your-account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com)
+
+  build:
+    commands:
+      - echo "Building Docker images..."
+      - for service in users-service orders-service payments-service inventory-service notifications-service gateway-service discovery-service; do
+          echo "Building $service...";
+          docker build -t $ECR_REPO/$service ./\$service;
+          docker tag $ECR_REPO/$service:latest <your-account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO/$service:latest;
+        done
+
+  post_build:
+    commands:
+      - echo "Pushing Docker images to ECR..."
+      - for service in users-service orders-service payments-service inventory-service notifications-service gateway-service discovery-service; do
+          docker push <your-account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO/$service:latest;
+        done
+      - echo "Build completed on `date`"
