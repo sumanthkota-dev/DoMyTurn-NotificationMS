@@ -1,32 +1,42 @@
 # -----------------------------
-# Stage 1: Build with Maven
+# Stage 1: Build with Maven + JDK 21
 # -----------------------------
-FROM eclipse-temurin:21-jdk AS build
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 
+# -----------------------------
+# Build CommonDTO first
+# -----------------------------
+WORKDIR /common-dto
+COPY CommonDTO/ /common-dto
+RUN mvn clean install -DskipTests
+
+# -----------------------------
+# Build CommonSecurity (depends on CommonDTO)
+# -----------------------------
+WORKDIR /common-security
+COPY CommonSecurity/ /common-security
+RUN mvn clean install -DskipTests
+
+# -----------------------------
+# Build AuthenticationMS (depends on CommonSecurity + CommonDTO)
+# -----------------------------
 WORKDIR /app
-
-# Copy Maven wrapper and pom.xml first (to leverage Docker caching)
-COPY pom.xml mvnw ./
-COPY .mvn .mvn
-RUN ./mvnw dependency:go-offline -B
-
-# Copy source code
+COPY pom.xml ./
+RUN mvn dependency:go-offline -B || true
 COPY src ./src
-
-# Build the JAR
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
 
 # -----------------------------
-# Stage 2: Runtime
+# Stage 2: Runtime (lightweight JDK)
 # -----------------------------
-FROM amazoncorretto:21-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-# Copy the JAR file from build stage
+# Copy JAR from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Expose the service port (Spring Boot default)
+# Expose Spring Boot default port
 EXPOSE 8080
 
 # Run the service
