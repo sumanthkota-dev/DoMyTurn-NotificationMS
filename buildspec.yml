@@ -2,32 +2,44 @@ version: 0.2
 
 env:
   variables:
-    AWS_DEFAULT_REGION: ap-south-1       # Change to your region
-    ECR_REPO: <your-ecr-repo-name>       # Example: my-microservices
-  secrets-manager:
-    DOCKERHUB_USERNAME: dockerhub/username
-    DOCKERHUB_PASSWORD: dockerhub/password
+    AWS_DEFAULT_REGION: ap-south-1
+    ECR_REPO: dmt-notificationms
 
 phases:
   pre_build:
     commands:
       - echo "Logging in to Amazon ECR..."
       - aws --version
-      - $(aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin <your-account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com)
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin 212051644153.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+      - echo "Listing primary source (UserMS):"
+      - ls $CODEBUILD_SRC_DIR
+
+      - echo "Listing secondary source (CommonSecurity):"
+      - ls $CODEBUILD_SRC_DIR_CommonSecurity
+
+      - echo "Listing secondary source (CommonDTO):"
+      - ls $CODEBUILD_SRC_DIR_CommonDTO
+
+      - echo "Copying secondary sources into build context..."
+      - cp -r $CODEBUILD_SRC_DIR_CommonSecurity ./CommonSecurity
+      - cp -r $CODEBUILD_SRC_DIR_CommonDTO ./CommonDTO
+      - echo "Secondary sources copied successfully"
 
   build:
     commands:
-      - echo "Building Docker images..."
-      - for service in users-service orders-service payments-service inventory-service notifications-service gateway-service discovery-service; do
-          echo "Building $service...";
-          docker build -t $ECR_REPO/$service ./\$service;
-          docker tag $ECR_REPO/$service:latest <your-account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO/$service:latest;
-        done
+      - echo "Building Docker image..."
+      - docker build -t $ECR_REPO .
+
+      - echo "Tagging Docker image..."
+      - docker tag $ECR_REPO:latest 212051644153.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO:latest
 
   post_build:
     commands:
-      - echo "Pushing Docker images to ECR..."
-      - for service in users-service orders-service payments-service inventory-service notifications-service gateway-service discovery-service; do
-          docker push <your-account-id>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO/$service:latest;
-        done
+      - echo "Pushing Docker image to ECR..."
+      - docker push 212051644153.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO:latest
       - echo "Build completed on `date`"
+
+artifacts:
+  files:
+    - '**/*'
